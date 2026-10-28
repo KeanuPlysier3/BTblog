@@ -12,7 +12,7 @@ A small static blog for our bachelor thesis team (Pham, Laura, Keanu). Built wit
 The session lives in `sessionStorage`, so it ends when the tab is closed or you click *Log out*.
 
 ### Reading
-The home page lists all posts, newest first. Use the category buttons (All / UX / DESIGN / DEVELOPMENT) to filter. Click a post to read it.
+The home page lists all posts, newest first. Use the category buttons (All / UX / DESIGN / DEVELOPMENT / FEEDBACK) to filter. Click a post to read it.
 
 ### Publishing a post (members only)
 1. Click **New post**.
@@ -21,6 +21,9 @@ The home page lists all posts, newest first. Use the category buttons (All / UX 
 4. Click **Publish**. The post is committed to the repo, GitHub Actions rebuilds the site, and it appears on the feed after about a minute.
 
 The author is taken from your login, and the date is set automatically. Two posts with the same title on the same day collide (the form tells you to change the title).
+
+### Adding images
+On **New post**, use the *Images* field. Each picked image is shrunk in your browser (max 1600px wide, WebP; GIFs are left as they are) and a Markdown link such as `![alt](../../assets/blog/<name>.webp)` is inserted at the cursor in the text. Edit the alt text between the brackets so it describes the image. On **Publish** the images you still reference are committed to `src/assets/blog/` first, then the post. Astro optimises them at build time. Delete a link from the text if you don't want that image uploaded.
 
 ### Getting your GitHub token
 To publish, the site needs a GitHub token that lets it add a file to the repo on your behalf. **Every teammate creates their own.** A token is tied to the GitHub account that created it, so don't share one: commits would all show up as the same person, and if it leaks everyone loses access.
@@ -53,7 +56,7 @@ Add a file to `src/content/blog/` named `YYYY-MM-DD-some-title.md`:
 ---
 title: "My post"
 description: "One-line summary shown on the feed."
-category: UX            # UX | DESIGN | DEVELOPMENT
+category: UX            # UX | DESIGN | DEVELOPMENT | FEEDBACK
 author: Laura           # Pham | Laura | Keanu
 date: 2026-10-27T09:00:00.000Z
 ---

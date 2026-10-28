@@ -1,7 +1,7 @@
 import { defineCollection, z } from "astro:content";
 import { glob } from "astro/loaders";
 
-export const CATEGORIES = ["UX", "DESIGN", "DEVELOPMENT"] as const;
+export const CATEGORIES = ["UX", "DESIGN", "DEVELOPMENT", "FEEDBACK"] as const;
 export const AUTHORS = ["Pham", "Laura", "Keanu"] as const;
 
 const blogCollection = defineCollection({

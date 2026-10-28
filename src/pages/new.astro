@@ -26,7 +26,12 @@ const branch = import.meta.env.PUBLIC_GITHUB_BRANCH ?? "main";
         </div>
         <div class="field">
             <label for="body">Post (markdown)</label>
+            <button class="btn btn--ghost" type="button" id="ai-template">Insert AI template</button>
             <textarea id="body" name="body" required></textarea>
+        </div>
+        <div class="field">
+            <label for="images">Images (inserted into the post at the cursor)</label>
+            <input id="images" type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple />
         </div>
         <div class="field">
             <label for="token">GitHub token (fine-grained, "Contents: read and write" on this repo)</label>
@@ -39,7 +44,8 @@ const branch = import.meta.env.PUBLIC_GITHUB_BRANCH ?? "main";
 
 <script>
     import { getSession } from "../lib/session";
-    import { slugify, toBase64 } from "../lib/utils";
+    import { slugify, toBase64, blobToBase64, shrinkImage } from "../lib/utils";
+    import { AI_TEMPLATE } from "../lib/templates";
 
     const form = document.querySelector<HTMLFormElement>("#post-form")!;
     const message = document.querySelector<HTMLElement>("#message")!;
@@ -58,6 +64,37 @@ const branch = import.meta.env.PUBLIC_GITHUB_BRANCH ?? "main";
         message.dataset.error = String(error);
         message.hidden = false;
     }
+
+    // Inserts the AI template without overwriting anything already written.
+    const body = form.elements.namedItem("body") as HTMLTextAreaElement;
+    document.querySelector("#ai-template")!.addEventListener("click", () => {
+        body.value = body.value.trim() ? `${body.value.trimEnd()}\n\n${AI_TEMPLATE}` : AI_TEMPLATE;
+        body.focus();
+    });
+
+    // Images picked in this session, keyed by their final file name. Uploaded on Publish.
+    const pendingImages = new Map<string, Blob>();
+    const imageInput = document.querySelector<HTMLInputElement>("#images")!;
+
+    imageInput.addEventListener("change", async () => {
+        for (const file of imageInput.files ?? []) {
+            try {
+                const blob = await shrinkImage(file);
+                const ext = blob.type.split("/")[1] || "png";
+                const stamp = new Date().toISOString().replace(/\D/g, "").slice(0, 14);
+                const base = slugify(file.name.replace(/\.[^.]+$/, "")) || "image";
+                const name = `${stamp}-${base}.${ext}`;
+                pendingImages.set(name, blob);
+                // Relative path from src/content/blog so Astro optimises it and handles the site base.
+                const link = `![${base.replace(/-/g, " ")}](../../assets/blog/${name})`;
+                const at = body.selectionStart ?? body.value.length;
+                body.setRangeText(`\n${link}\n`, at, body.selectionEnd ?? at, "end");
+            } catch {
+                show(`Could not read ${file.name}.`, true);
+            }
+        }
+        imageInput.value = "";
+    });
 
     form.addEventListener("submit", async (event) => {
         event.preventDefault();
@@ -83,13 +120,34 @@ const branch = import.meta.env.PUBLIC_GITHUB_BRANCH ?? "main";
         ].join("\n");
 
         const token = String(data.get("token")).trim();
+        const headers = { Authorization: `Bearer ${token}`, Accept: "application/vnd.github+json" };
+        const postBody = String(data.get("body"));
+
+        // Upload images first so a failed upload never leaves a post with broken images.
+        // Only images still referenced in the text are sent.
+        for (const [name, blob] of pendingImages) {
+            if (!postBody.includes(name)) continue;
+            show(`Uploading ${name}…`);
+            const upload = await fetch(`https://api.github.com/repos/${repo}/contents/src/assets/blog/${name}`, {
+                method: "PUT",
+                headers,
+                body: JSON.stringify({
+                    message: `blog: image ${name} (${session.name})`,
+                    content: await blobToBase64(blob),
+                    branch: form.dataset.branch,
+                }),
+            });
+            // 422 means the image is already in the repo (e.g. from a retry), which is fine.
+            if (!upload.ok && upload.status !== 422) {
+                const detail = (await upload.json().catch(() => ({}))).message ?? upload.statusText;
+                return show(`Image upload failed (${upload.status}): ${detail}`, true);
+            }
+        }
+
         show("Publishing…");
         const response = await fetch(`https://api.github.com/repos/${repo}/contents/src/content/blog/${slug}.md`, {
             method: "PUT",
-            headers: {
-                Authorization: `Bearer ${token}`,
-                Accept: "application/vnd.github+json",
-            },
+            headers,
             body: JSON.stringify({
                 message: `blog: ${title} (${session.name})`,
                 content: toBase64(markdown),
@@ -101,6 +159,7 @@ const branch = import.meta.env.PUBLIC_GITHUB_BRANCH ?? "main";
             localStorage.setItem("blog-github-token", token);
             show("Published! GitHub Pages is rebuilding — your post shows up on the feed in about a minute.");
             form.reset();
+            pendingImages.clear();
             tokenInput.value = token;
         } else if (response.status === 422) {
             show("A post with that title already exists today. Change the title and try again.", true);
