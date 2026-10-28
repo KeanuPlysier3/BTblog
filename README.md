@@ -25,6 +25,11 @@ The author is taken from your login, and the date is set automatically. Two post
 ### Adding images
 On **New post**, use the *Images* field. Each picked image is shrunk in your browser (max 1600px wide, WebP; GIFs are left as they are) and a Markdown link such as `![alt](../../assets/blog/<name>.webp)` is inserted at the cursor in the text. Edit the alt text between the brackets so it describes the image. On **Publish** the images you still reference are committed to `src/assets/blog/` first, then the post. Astro optimises them at build time. Delete a link from the text if you don't want that image uploaded.
 
+### Time tracking
+Open **Time** in the top bar. It shows one week at a time (Monday to Sunday) with a coloured bar meter per person per day (full bar = 10 h), the hours and label next to it, and weekly totals per person at the top. Hover a bar to see what that person did that day. Use ← / → and *This week* to move between weeks.
+
+Members click **Add time** on a day, enter hours, an optional label and a description, and save. It is stored as `src/content/time/<date>-<name>.json`, one file per person per day. Picking a day you already logged loads it, and saving **overwrites** it. Hours `0` hides that day's bar. Your own entry shows immediately in your browser; others see it after the site rebuilds (about a minute). Person colours are set in `src/pages/time.astro`.
+
 ### Getting your GitHub token
 To publish, the site needs a GitHub token that lets it add a file to the repo on your behalf. **Every teammate creates their own.** A token is tied to the GitHub account that created it, so don't share one: commits would all show up as the same person, and if it leaks everyone loses access.
 
@@ -92,6 +97,8 @@ Astro 5, static output, no UI framework, plain CSS (`src/styles/`), and vanilla 
 | `src/pages/blog/[id].astro` | Post page, generated per Markdown file via `getStaticPaths` |
 | `src/pages/login.astro` | Login form |
 | `src/pages/new.astro` | Post editor that commits to GitHub |
+| `src/pages/time.astro` | Weekly time tracker (reads `src/content/time/*.json`, commits entries) |
+| `src/lib/github.ts` | GitHub contents API helpers (get sha, put file) |
 | `src/layouts/baseLayout.astro` | Shared shell: top bar, styles, session script |
 | `src/lib/users.ts` | Build-time password hashing |
 | `src/lib/session.ts` | Client-side session and route guard |

@@ -1,0 +1,397 @@
+---
+import Base from "../layouts/baseLayout.astro";
+import { getCollection } from "astro:content";
+import { AUTHORS } from "../content.config";
+
+// One colour per person, used for their bars everywhere on this page.
+const COLORS: Record<(typeof AUTHORS)[number], string> = {
+    Pham: "#5ac8fa",
+    Laura: "#ff9f0a",
+    Keanu: "#30d158",
+};
+
+const entries = (await getCollection("time")).map((entry) => entry.data);
+const repo = import.meta.env.PUBLIC_GITHUB_REPO ?? "";
+const branch = import.meta.env.PUBLIC_GITHUB_BRANCH ?? "main";
+// "<" is escaped so a description can never close the script tag.
+const json = JSON.stringify({ entries, colors: COLORS, people: AUTHORS }).replace(/</g, "\\u003c");
+---
+
+<Base pageTitle="Time">
+    <h1 class="page-title">Time</h1>
+
+    <div class="time-nav">
+        <button class="btn btn--ghost" type="button" id="prev" aria-label="Previous week">←</button>
+        <strong id="range"></strong>
+        <button class="btn btn--ghost" type="button" id="next" aria-label="Next week">→</button>
+        <button class="btn btn--ghost" type="button" id="today">This week</button>
+    </div>
+
+    <ul class="time-totals" id="totals"></ul>
+    <p class="time-status" id="status" role="status" hidden></p>
+    <div class="time-week" id="week"></div>
+
+    <dialog class="time-dialog" id="dialog" data-repo={repo} data-branch={branch}>
+        <form id="time-form" method="dialog">
+            <h2 id="dialog-title">Add time</h2>
+            <div class="field">
+                <label for="date">Date</label>
+                <input id="date" name="date" type="date" required />
+            </div>
+            <div class="field">
+                <label for="hours">Hours (0 hides the day)</label>
+                <input id="hours" name="hours" type="number" min="0" max="24" step="0.25" required />
+            </div>
+            <div class="field">
+                <label for="label">Label</label>
+                <input id="label" name="label" maxlength="30" placeholder="e.g. Research" />
+            </div>
+            <div class="field">
+                <label for="description">What did you do?</label>
+                <textarea id="description" name="description" rows="4"></textarea>
+            </div>
+            <div class="field">
+                <label for="token">GitHub token</label>
+                <input id="token" name="token" type="password" autocomplete="off" required />
+            </div>
+            <button class="btn" type="submit">Save</button>
+            <button class="btn btn--ghost" type="button" id="cancel">Cancel</button>
+            <p class="message" id="dialog-message" role="status" hidden></p>
+        </form>
+    </dialog>
+
+    <script type="application/json" id="time-data" is:inline set:html={json} />
+</Base>
+
+<script>
+    import { getSession } from "../lib/session";
+    import { getFileSha, putFile } from "../lib/github";
+    import { slugify, toBase64 } from "../lib/utils";
+
+    type Entry = { person: string; date: string; hours: number; label: string; description: string };
+
+    const DAY = 86_400_000;
+    const MAX_HOURS = 10; // a full bar
+    const data = JSON.parse(document.querySelector("#time-data")!.textContent!);
+    const colors: Record<string, string> = data.colors;
+    const people: string[] = data.people;
+    const session = getSession();
+    const isMember = session?.role === "member";
+
+    const key = (date: string, person: string) => `${date}|${person}`;
+    const entries = new Map<string, Entry>(data.entries.map((e: Entry) => [key(e.date, e.person), e]));
+
+    // Dates are handled as UTC midnights so daylight saving can never shift a day.
+    const iso = (d: Date) => d.toISOString().slice(0, 10);
+    const parse = (s: string) => new Date(`${s}T00:00:00Z`);
+    const mondayOf = (d: Date) => new Date(d.getTime() - ((d.getUTCDay() + 6) % 7) * DAY);
+    const todayIso = () => {
+        const n = new Date();
+        return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, "0")}-${String(n.getDate()).padStart(2, "0")}`;
+    };
+    const fmt = (d: Date, options: Intl.DateTimeFormatOptions) =>
+        d.toLocaleDateString("en-GB", { ...options, timeZone: "UTC" });
+    const hoursText = (h: number) => `${Number.isInteger(h) ? h : h.toFixed(2).replace(/0$/, "")} h`;
+
+    let weekStart = mondayOf(parse(todayIso()));
+
+    const week = document.querySelector<HTMLElement>("#week")!;
+    const totals = document.querySelector<HTMLElement>("#totals")!;
+    const range = document.querySelector<HTMLElement>("#range")!;
+    const status = document.querySelector<HTMLElement>("#status")!;
+
+    function el<K extends keyof HTMLElementTagNameMap>(tag: K, className?: string, text?: string) {
+        const node = document.createElement(tag);
+        if (className) node.className = className;
+        if (text !== undefined) node.textContent = text; // textContent keeps user text from being parsed as HTML
+        return node;
+    }
+
+    function render() {
+        const days = Array.from({ length: 7 }, (_, i) => new Date(weekStart.getTime() + i * DAY));
+        range.textContent = `${fmt(days[0], { day: "numeric", month: "short" })} – ${fmt(days[6], { day: "numeric", month: "short", year: "numeric" })}`;
+
+        const weekly: Record<string, number> = Object.fromEntries(people.map((p) => [p, 0]));
+        week.replaceChildren();
+
+        for (const day of days) {
+            const date = iso(day);
+            const card = el("section", "time-day");
+            const head = el("header", "time-day_head");
+            head.append(el("h2", "time-day_title", fmt(day, { weekday: "short", day: "numeric", month: "short" })));
+            let dayTotal = 0;
+
+            const rows = el("div", "time-rows");
+            for (const person of people) {
+                const entry = entries.get(key(date, person));
+                if (!entry || entry.hours <= 0) continue;
+                dayTotal += entry.hours;
+                weekly[person] += entry.hours;
+
+                // The tooltip (title) shows what that person did that day.
+                const row = el("div", "time-row");
+                row.tabIndex = 0;
+                row.title = `${person}${entry.label ? ` · ${entry.label}` : ""}\n${entry.description || "No description"}`;
+
+                const meter = el("div", "time-meter");
+                const bar = el("span");
+                bar.style.width = `${Math.min(100, (entry.hours / MAX_HOURS) * 100)}%`;
+                bar.style.background = colors[person];
+                meter.append(bar);
+
+                const name = el("span", "time-row_name", person);
+                name.style.color = colors[person];
+                row.append(name, meter, el("span", "time-row_hours", hoursText(entry.hours)));
+                if (entry.label) row.append(el("span", "time-row_label", entry.label));
+                rows.append(row);
+            }
+
+            head.append(el("span", "time-day_total", dayTotal ? hoursText(dayTotal) : ""));
+            card.append(head, rows);
+            if (!rows.children.length) rows.append(el("p", "time-empty", "No time logged"));
+            if (isMember) {
+                const add = el("button", "btn btn--ghost time-add", entries.has(key(date, session!.name)) ? "Edit mine" : "Add time");
+                add.type = "button";
+                add.addEventListener("click", () => openDialog(date));
+                card.append(add);
+            }
+            week.append(card);
+        }
+
+        totals.replaceChildren(
+            ...people.map((person) => {
+                const item = el("li", "time-total");
+                const dot = el("span", "time-dot");
+                dot.style.background = colors[person];
+                item.append(dot, el("span", undefined, `${person} ${hoursText(weekly[person])}`));
+                return item;
+            }),
+        );
+    }
+
+    document.querySelector("#prev")!.addEventListener("click", () => {
+        weekStart = new Date(weekStart.getTime() - 7 * DAY);
+        render();
+    });
+    document.querySelector("#next")!.addEventListener("click", () => {
+        weekStart = new Date(weekStart.getTime() + 7 * DAY);
+        render();
+    });
+    document.querySelector("#today")!.addEventListener("click", () => {
+        weekStart = mondayOf(parse(todayIso()));
+        render();
+    });
+
+    // ---- add / edit dialog ----
+    const dialog = document.querySelector<HTMLDialogElement>("#dialog")!;
+    const form = document.querySelector<HTMLFormElement>("#time-form")!;
+    const message = document.querySelector<HTMLElement>("#dialog-message")!;
+    const field = (name: string) => form.elements.namedItem(name) as HTMLInputElement;
+
+    // Picking a date you already logged loads that entry, so saving overrides it.
+    function fillFor(date: string) {
+        const existing = entries.get(key(date, session!.name));
+        field("hours").value = existing ? String(existing.hours) : "";
+        field("label").value = existing?.label ?? "";
+        field("description").value = existing?.description ?? "";
+        document.querySelector("#dialog-title")!.textContent = existing ? "Edit your time" : "Add time";
+    }
+
+    function openDialog(date: string) {
+        field("date").value = date;
+        field("token").value = localStorage.getItem("blog-github-token") ?? "";
+        message.hidden = true;
+        fillFor(date);
+        dialog.showModal();
+    }
+
+    field("date").addEventListener("change", () => field("date").value && fillFor(field("date").value));
+    document.querySelector("#cancel")!.addEventListener("click", () => dialog.close());
+
+    form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        if (!isMember || !session) return;
+        const repo = dialog.dataset.repo;
+        if (!repo) return showError("PUBLIC_GITHUB_REPO is not configured for this build.");
+
+        const entry: Entry = {
+            person: session.name,
+            date: field("date").value,
+            hours: Number(field("hours").value),
+            label: field("label").value.trim(),
+            description: field("description").value.trim(),
+        };
+        const token = field("token").value.trim();
+        const target = { repo, branch: dialog.dataset.branch ?? "main", token };
+        const path = `src/content/time/${entry.date}-${slugify(entry.person)}.json`;
+
+        message.textContent = "Saving…";
+        message.dataset.error = "false";
+        message.hidden = false;
+        try {
+            const sha = await getFileSha(target, path); // exists already -> overwrite
+            await putFile(target, path, toBase64(JSON.stringify(entry, null, 2) + "\n"), `time: ${entry.person} ${entry.date} (${entry.hours} h)`, sha);
+        } catch (error) {
+            return showError(error instanceof Error ? error.message : "Could not save.");
+        }
+
+        localStorage.setItem("blog-github-token", token);
+        entries.set(key(entry.date, entry.person), entry);
+        dialog.close();
+        render();
+        status.textContent = "Saved. Everyone else sees it once the site has rebuilt (about a minute).";
+        status.hidden = false;
+    });
+
+    function showError(text: string) {
+        message.textContent = text;
+        message.dataset.error = "true";
+        message.hidden = false;
+    }
+
+    render();
+</script>
+
+<style is:global>
+    .time-nav {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        align-items: center;
+        gap: var(--space-1);
+        margin-bottom: var(--space-1);
+        text-align: center;
+    }
+
+    .time-totals {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: var(--space-1);
+        list-style: none;
+        padding: 0;
+        margin-bottom: var(--space-2);
+        font-weight: 700;
+    }
+
+    .time-total {
+        display: flex;
+        align-items: center;
+        gap: var(--space-0-50);
+    }
+
+    .time-dot {
+        width: 0.75rem;
+        height: 0.75rem;
+        border-radius: 50%;
+    }
+
+    .time-status {
+        text-align: center;
+        font-weight: 700;
+        margin-bottom: var(--space-1);
+    }
+
+    .time-week {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
+        gap: var(--space-1);
+    }
+
+    .time-day {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-0-50);
+        padding: var(--space-1);
+        border: 2px solid var(--color-white);
+        border-radius: var(--radius-md);
+    }
+
+    .time-day_head {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+    }
+
+    .time-day_title {
+        font-size: var(--font-size-lg);
+    }
+
+    .time-day_total {
+        font-weight: 700;
+        color: var(--color-grey);
+    }
+
+    .time-rows {
+        display: grid;
+        gap: var(--space-0-50);
+        flex: 1;
+    }
+
+    .time-row {
+        display: grid;
+        grid-template-columns: 4.5rem 1fr auto;
+        align-items: center;
+        gap: var(--space-0-50);
+        cursor: help;
+    }
+
+    .time-row_name {
+        font-weight: 800;
+    }
+
+    .time-row_hours {
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+    }
+
+    .time-row_label {
+        grid-column: 2 / -1;
+        font-size: var(--font-size-sm);
+        color: var(--color-grey);
+    }
+
+    .time-meter {
+        height: 0.75rem;
+        background: var(--color-line);
+        border-radius: 999px;
+        overflow: hidden;
+    }
+
+    .time-meter span {
+        display: block;
+        height: 100%;
+        border-radius: 999px;
+    }
+
+    .time-empty {
+        color: var(--color-grey);
+        font-size: var(--font-size-sm);
+    }
+
+    .time-add {
+        align-self: flex-start;
+    }
+
+    .time-dialog {
+        width: min(100% - 2rem, 32rem);
+        margin: auto;
+        padding: var(--space-2);
+        background: var(--color-black);
+        color: var(--color-white);
+        border: 2px solid var(--color-white);
+        border-radius: var(--radius-md);
+    }
+
+    .time-dialog::backdrop {
+        background: rgba(0, 0, 0, 0.8);
+    }
+
+    .time-dialog h2 {
+        margin-bottom: var(--space-1);
+    }
+
+    .time-dialog .btn {
+        margin-right: var(--space-0-50);
+    }
+</style>

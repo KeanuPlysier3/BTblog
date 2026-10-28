@@ -15,6 +15,19 @@ const blogCollection = defineCollection({
   }),
 });
 
+// One JSON file per person per day (src/content/time/<date>-<name>.json); saving the same day again overwrites it.
+const timeCollection = defineCollection({
+  loader: glob({ pattern: "**/*.json", base: "./src/content/time" }),
+  schema: z.object({
+    person: z.enum(AUTHORS),
+    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    hours: z.number().min(0).max(24),
+    label: z.string().default(""),
+    description: z.string().default(""),
+  }),
+});
+
 export const collections = {
   blog: blogCollection,
+  time: timeCollection,
 };

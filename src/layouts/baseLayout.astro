@@ -4,6 +4,7 @@ import "../styles/global.css";
 
 const { pageTitle, public: isPublic = false } = Astro.props;
 const base = import.meta.env.BASE_URL;
+const figjamUrl = "https://www.figma.com/board/CuITIUtfDocbKg91VGBBgF/Bachelor-Thesis?node-id=88-2640&t=OyrVxynvvRUINnWN-1";
 ---
 
 <html lang="en">
@@ -17,6 +18,8 @@ const base = import.meta.env.BASE_URL;
         <header class="topbar container" data-auth-only>
             <a class="topbar_brand" href={base}>Team Blog</a>
             <nav class="topbar_nav">
+                <a class="btn btn--ghost" href={`${base}time`}>Time</a>
+                <a class="btn btn--ghost" href={figjamUrl} target="_blank" rel="noopener noreferrer">FigJam ↗</a>
                 <a class="btn hidden" data-member-only href={`${base}new`}>New post</a>
                 <span class="topbar_user" data-user></span>
                 <button class="btn btn--ghost" type="button" data-logout>Log out</button>
