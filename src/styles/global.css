@@ -27,7 +27,6 @@
 }
 
 html {
-    -webkit-text-size-adjust: 100%;
     color-scheme: dark; /* dark date picker, scrollbars and dialogs */
 }
 
@@ -39,7 +38,6 @@ body {
     font-size: var(--font-size-base);
     font-weight: 450;
     line-height: 1.6;
-    -webkit-font-smoothing: antialiased;
 }
 
 a {
@@ -109,6 +107,7 @@ h3 {
 }
 
 .field {
+    min-width: 0; /* lets inputs shrink inside grid rows (date inputs have a wide intrinsic size) */
     display: flex;
     flex-direction: column;
     gap: 0.35rem;
@@ -192,8 +191,14 @@ h3 {
 /* Two fields side by side, stacking on narrow screens. */
 .field-row {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
     gap: var(--space-1);
+}
+
+@media (max-width: 24rem) {
+    .field-row {
+        grid-template-columns: minmax(0, 1fr);
+    }
 }
 
 .hint {
