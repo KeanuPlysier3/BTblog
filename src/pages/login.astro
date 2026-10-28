@@ -1,0 +1,76 @@
+---
+import Base from "../layouts/baseLayout.astro";
+import { AUTHORS } from "../content.config";
+import { getPasswordHash } from "../lib/users";
+
+const hash = getPasswordHash();
+---
+
+<Base pageTitle="Login" public>
+    <h1 class="page-title">Team blog</h1>
+
+    <form class="login" id="login-form" data-hash={hash}>
+        <div class="field">
+            <label for="name">Team member</label>
+            <select id="name" name="name">
+                {AUTHORS.map((name) => <option value={name}>{name}</option>)}
+            </select>
+        </div>
+        <div class="field">
+            <label for="password">Password</label>
+            <input id="password" name="password" type="password" autocomplete="current-password" required />
+        </div>
+        <button class="btn" type="submit">Log in</button>
+        <button class="btn btn--ghost" type="button" id="teacher">Continue as teacher</button>
+        <p class="message" id="message" role="alert" hidden></p>
+    </form>
+</Base>
+
+<script>
+    import { setSession } from "../lib/session";
+
+    const form = document.querySelector<HTMLFormElement>("#login-form")!;
+    const message = document.querySelector<HTMLElement>("#message")!;
+    const expected = form.dataset.hash ?? "";
+    const home = document.body.dataset.base ?? "/";
+
+    async function sha256(text: string) {
+        const bytes = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+        return [...new Uint8Array(bytes)].map((b) => b.toString(16).padStart(2, "0")).join("");
+    }
+
+    form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const data = new FormData(form);
+        const name = String(data.get("name"));
+        const hash = await sha256(String(data.get("password")));
+        if (expected && expected === hash) {
+            setSession({ role: "member", name });
+            location.href = home;
+        } else {
+            message.textContent = "Wrong password.";
+            message.dataset.error = "true";
+            message.hidden = false;
+        }
+    });
+
+    document.querySelector("#teacher")!.addEventListener("click", () => {
+        setSession({ role: "teacher", name: "Teacher" });
+        location.href = home;
+    });
+</script>
+
+<style>
+    .login {
+        max-width: 24rem;
+        text-align: center;
+    }
+
+    .login .field {
+        text-align: left;
+    }
+
+    .login .btn {
+        margin: var(--space-0-50) var(--space-0-50) 0 0;
+    }
+</style>

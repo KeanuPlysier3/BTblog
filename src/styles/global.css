@@ -1,0 +1,167 @@
+@font-face {
+    font-family: "BricolageGrotesque";
+    src: url("/fonts/BricolageGrotesque-VariableFont_opsz,wdth,wght.ttf");
+    font-weight: 200 800;
+}
+
+:root {
+    --font-size-base: 1rem;
+    --font-size-sm: 0.875rem;
+    --font-size-lg: clamp(1.1rem, 1rem + 0.5vw, 1.25rem);
+    --font-size-xl: clamp(1.35rem, 1.1rem + 1.2vw, 1.75rem);
+    --font-size-xxl: clamp(2rem, 1.4rem + 3vw, 3.5rem);
+    --font-size-xxxl: clamp(2.5rem, 1.5rem + 5.5vw, 5.5rem);
+
+    --color-black: #000000;
+    --color-white: #ffffff;
+    --color-grey: #a3a3a3;
+    --color-line: #2a2a2a;
+    --color-danger: #ff3b30;
+
+    --space-0-50: 0.5rem;
+    --space-1: 1rem;
+    --space-2: 2rem;
+    --space-3: 3rem;
+
+    --radius-md: 0.25rem;
+}
+
+html {
+    -webkit-text-size-adjust: 100%;
+}
+
+body {
+    min-height: 100vh;
+    background-color: var(--color-black);
+    color: var(--color-white);
+    font-family: "BricolageGrotesque", system-ui, sans-serif;
+    font-size: var(--font-size-base);
+    font-weight: 450;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+}
+
+a {
+    color: inherit;
+}
+
+.container {
+    width: min(100% - 2rem, 52rem);
+    margin-inline: auto;
+}
+
+main.container {
+    padding-bottom: var(--space-3);
+}
+
+h1,
+h2,
+h3 {
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    line-height: 1.05;
+}
+
+.page-title {
+    font-size: var(--font-size-xxxl);
+    font-weight: 800;
+    letter-spacing: -0.04em;
+    text-align: center;
+    text-wrap: balance;
+    margin-block: var(--space-3) var(--space-2);
+}
+
+.btn {
+    display: inline-block;
+    font: inherit;
+    font-weight: 700;
+    background-color: var(--color-white);
+    color: var(--color-black);
+    border: 2px solid var(--color-white);
+    border-radius: 999px;
+    padding: 0.5rem 1.25rem;
+    cursor: pointer;
+    text-decoration: none;
+    transition: background-color 0.15s, color 0.15s;
+}
+
+.btn:hover,
+.btn:focus-visible {
+    background-color: var(--color-black);
+    color: var(--color-white);
+}
+
+.btn--ghost {
+    background: transparent;
+    color: var(--color-white);
+}
+
+.btn--ghost:hover,
+.btn--ghost:focus-visible {
+    background-color: var(--color-white);
+    color: var(--color-black);
+}
+
+:focus-visible {
+    outline: 3px solid var(--color-grey);
+    outline-offset: 2px;
+}
+
+.field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    margin-bottom: var(--space-1);
+}
+
+.field label {
+    font-weight: 700;
+    text-transform: uppercase;
+    font-size: var(--font-size-sm);
+    letter-spacing: 0.05em;
+}
+
+.field input,
+.field select,
+.field textarea {
+    font: inherit;
+    padding: 0.75rem var(--space-1);
+    border-radius: var(--radius-md);
+    border: 2px solid var(--color-white);
+    background-color: var(--color-black);
+    color: var(--color-white);
+    width: 100%;
+}
+
+.field textarea {
+    min-height: 16rem;
+    resize: vertical;
+}
+
+form {
+    width: min(100%, 36rem);
+    margin-inline: auto;
+}
+
+.message {
+    margin-top: var(--space-1);
+    font-weight: 700;
+    text-align: center;
+}
+
+.message[data-error="true"] {
+    color: var(--color-black);
+    background-color: var(--color-danger);
+    padding: var(--space-0-50);
+    border-radius: var(--radius-md);
+}
+
+.hidden {
+    display: none !important;
+}
+
+@media (max-width: 40rem) {
+    .btn {
+        padding: 0.5rem 1rem;
+    }
+}

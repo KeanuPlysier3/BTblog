@@ -1,0 +1,112 @@
+---
+import Base from "../layouts/baseLayout.astro";
+import { CATEGORIES } from "../content.config";
+
+const repo = import.meta.env.PUBLIC_GITHUB_REPO ?? "";
+const branch = import.meta.env.PUBLIC_GITHUB_BRANCH ?? "main";
+---
+
+<Base pageTitle="New post">
+    <h1 class="page-title">New post</h1>
+
+    <form id="post-form" data-repo={repo} data-branch={branch}>
+        <div class="field">
+            <label for="title">Title</label>
+            <input id="title" name="title" required />
+        </div>
+        <div class="field">
+            <label for="description">Short description</label>
+            <input id="description" name="description" required />
+        </div>
+        <div class="field">
+            <label for="category">Category</label>
+            <select id="category" name="category">
+                {CATEGORIES.map((c) => <option value={c}>{c}</option>)}
+            </select>
+        </div>
+        <div class="field">
+            <label for="body">Post (markdown)</label>
+            <textarea id="body" name="body" required></textarea>
+        </div>
+        <div class="field">
+            <label for="token">GitHub token (fine-grained, "Contents: read and write" on this repo)</label>
+            <input id="token" name="token" type="password" autocomplete="off" required />
+        </div>
+        <button class="btn" type="submit">Publish</button>
+        <p class="message" id="message" role="status" hidden></p>
+    </form>
+</Base>
+
+<script>
+    import { getSession } from "../lib/session";
+    import { slugify, toBase64 } from "../lib/utils";
+
+    const form = document.querySelector<HTMLFormElement>("#post-form")!;
+    const message = document.querySelector<HTMLElement>("#message")!;
+    const tokenInput = form.elements.namedItem("token") as HTMLInputElement;
+    const session = getSession();
+
+    // Teachers are read-only: bounce them back to the feed.
+    if (session && session.role !== "member") {
+        location.replace(document.body.dataset.base ?? "/");
+    }
+
+    tokenInput.value = localStorage.getItem("blog-github-token") ?? "";
+
+    function show(text: string, error = false) {
+        message.textContent = text;
+        message.dataset.error = String(error);
+        message.hidden = false;
+    }
+
+    form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        if (!session || session.role !== "member") return;
+        const repo = form.dataset.repo;
+        if (!repo) return show("PUBLIC_GITHUB_REPO is not configured for this build.", true);
+
+        const data = new FormData(form);
+        const title = String(data.get("title")).trim();
+        const date = new Date().toISOString();
+        const slug = `${date.slice(0, 10)}-${slugify(title) || "post"}`;
+        const markdown = [
+            "---",
+            `title: ${JSON.stringify(title)}`,
+            `description: ${JSON.stringify(String(data.get("description")).trim())}`,
+            `category: ${data.get("category")}`,
+            `author: ${session.name}`,
+            `date: ${date}`,
+            "---",
+            "",
+            String(data.get("body")).trim(),
+            "",
+        ].join("\n");
+
+        const token = String(data.get("token")).trim();
+        show("Publishing…");
+        const response = await fetch(`https://api.github.com/repos/${repo}/contents/src/content/blog/${slug}.md`, {
+            method: "PUT",
+            headers: {
+                Authorization: `Bearer ${token}`,
+                Accept: "application/vnd.github+json",
+            },
+            body: JSON.stringify({
+                message: `blog: ${title} (${session.name})`,
+                content: toBase64(markdown),
+                branch: form.dataset.branch,
+            }),
+        });
+
+        if (response.ok) {
+            localStorage.setItem("blog-github-token", token);
+            show("Published! GitHub Pages is rebuilding — your post shows up on the feed in about a minute.");
+            form.reset();
+            tokenInput.value = token;
+        } else if (response.status === 422) {
+            show("A post with that title already exists today. Change the title and try again.", true);
+        } else {
+            const detail = (await response.json().catch(() => ({}))).message ?? response.statusText;
+            show(`GitHub rejected the post (${response.status}): ${detail}`, true);
+        }
+    });
+</script>

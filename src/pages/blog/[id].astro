@@ -1,0 +1,52 @@
+---
+import Base from "../../layouts/baseLayout.astro";
+import { getCollection, render } from "astro:content";
+
+export async function getStaticPaths() {
+    const posts = await getCollection("blog");
+    return posts.map((post) => ({ params: { id: post.id }, props: { post } }));
+}
+
+const { post } = Astro.props;
+const { Content } = await render(post);
+const base = import.meta.env.BASE_URL;
+---
+
+<Base pageTitle={post.data.title}>
+    <a href={base}>← All posts</a>
+    <p class="meta">
+        {post.data.category} · {post.data.author} · {post.data.date.toLocaleDateString("en-GB")}
+    </p>
+    <h1 class="page-title">{post.data.title}</h1>
+    <div class="prose">
+        <Content />
+    </div>
+</Base>
+
+<style>
+    .meta {
+        margin-top: var(--space-1);
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+
+    .prose :global(p),
+    .prose :global(ul),
+    .prose :global(ol) {
+        margin-bottom: var(--space-1);
+    }
+
+    .prose :global(ul),
+    .prose :global(ol) {
+        padding-left: var(--space-2);
+    }
+
+    .prose :global(h2),
+    .prose :global(h3) {
+        margin-block: var(--space-1) var(--space-0-50);
+    }
+
+    .prose :global(a) {
+        text-decoration: underline;
+    }
+</style>

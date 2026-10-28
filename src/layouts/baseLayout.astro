@@ -1,0 +1,70 @@
+---
+import "../styles/reset.css";
+import "../styles/global.css";
+
+const { pageTitle, public: isPublic = false } = Astro.props;
+const base = import.meta.env.BASE_URL;
+---
+
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width" />
+        <link rel="icon" type="image/svg+xml" href={`${base}favicon.svg`} />
+        <title>{pageTitle}</title>
+    </head>
+    <body data-base={base} data-public={isPublic ? "true" : "false"}>
+        <header class="topbar container" data-auth-only>
+            <a class="topbar_brand" href={base}>Team Blog</a>
+            <nav class="topbar_nav">
+                <a class="btn hidden" data-member-only href={`${base}new`}>New post</a>
+                <span class="topbar_user" data-user></span>
+                <button class="btn btn--ghost" type="button" data-logout>Log out</button>
+            </nav>
+        </header>
+        <main class="container">
+            <slot />
+        </main>
+        <script src="../lib/session.ts"></script>
+    </body>
+</html>
+
+<style>
+    .topbar {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        flex-wrap: wrap;
+        text-align: center;
+        border-bottom: 2px solid var(--color-white);
+        gap: var(--space-1);
+        padding-block: var(--space-1);
+    }
+
+    .topbar_brand {
+        font-size: var(--font-size-xl);
+        font-weight: 800;
+        letter-spacing: -0.03em;
+        text-decoration: none;
+        text-transform: uppercase;
+    }
+
+    .topbar_nav {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-wrap: wrap;
+        gap: var(--space-1);
+    }
+
+    .topbar_user {
+        font-weight: 700;
+    }
+
+    @media (min-width: 40rem) {
+        .topbar {
+            justify-content: space-between;
+            text-align: left;
+        }
+    }
+</style>
