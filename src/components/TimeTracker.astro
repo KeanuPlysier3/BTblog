@@ -1,5 +1,4 @@
 ---
-import Base from "../layouts/baseLayout.astro";
 import { getCollection } from "astro:content";
 import { AUTHORS } from "../content.config";
 
@@ -17,9 +16,7 @@ const branch = import.meta.env.PUBLIC_GITHUB_BRANCH ?? "main";
 const json = JSON.stringify({ entries, colors: COLORS, people: AUTHORS }).replace(/</g, "\\u003c");
 ---
 
-<Base pageTitle="Time">
-    <h1 class="page-title">Time</h1>
-
+<section id="time-panel" class="time hidden" aria-label="Time tracking">
     <div class="time-nav">
         <button class="btn btn--ghost" type="button" id="prev" aria-label="Previous week">←</button>
         <strong id="range"></strong>
@@ -33,35 +30,40 @@ const json = JSON.stringify({ entries, colors: COLORS, people: AUTHORS }).replac
 
     <dialog class="time-dialog" id="dialog" data-repo={repo} data-branch={branch}>
         <form id="time-form" method="dialog">
-            <h2 id="dialog-title">Add time</h2>
-            <div class="field">
-                <label for="date">Date</label>
-                <input id="date" name="date" type="date" required />
+            <h3 id="dialog-title" class="time-dialog_title">Add time</h3>
+            <div class="field-row">
+                <div class="field">
+                    <label for="date">Date</label>
+                    <input id="date" name="date" type="date" required />
+                </div>
+                <div class="field">
+                    <label for="hours">Hours</label>
+                    <input id="hours" name="hours" type="number" min="0" max="24" step="0.25" inputmode="decimal" placeholder="0" required />
+                </div>
             </div>
-            <div class="field">
-                <label for="hours">Hours (0 hides the day)</label>
-                <input id="hours" name="hours" type="number" min="0" max="24" step="0.25" required />
-            </div>
+            <p class="hint">Saving a day you already logged replaces it. Hours 0 hides it.</p>
             <div class="field">
                 <label for="label">Label</label>
-                <input id="label" name="label" maxlength="30" placeholder="e.g. Research" />
+                <input id="label" name="label" maxlength="30" placeholder="e.g. Research (optional)" />
             </div>
             <div class="field">
                 <label for="description">What did you do?</label>
-                <textarea id="description" name="description" rows="4"></textarea>
+                <textarea id="description" name="description" rows="4" placeholder="Short summary of the work"></textarea>
             </div>
             <div class="field">
                 <label for="token">GitHub token</label>
                 <input id="token" name="token" type="password" autocomplete="off" required />
             </div>
-            <button class="btn" type="submit">Save</button>
-            <button class="btn btn--ghost" type="button" id="cancel">Cancel</button>
+            <div class="form-actions">
+                <button class="btn" type="submit">Save</button>
+                <button class="btn btn--ghost" type="button" id="cancel">Cancel</button>
+            </div>
             <p class="message" id="dialog-message" role="status" hidden></p>
         </form>
     </dialog>
 
     <script type="application/json" id="time-data" is:inline set:html={json} />
-</Base>
+</section>
 
 <script>
     import { getSession } from "../lib/session";
@@ -207,6 +209,8 @@ const json = JSON.stringify({ entries, colors: COLORS, people: AUTHORS }).replac
 
     field("date").addEventListener("change", () => field("date").value && fillFor(field("date").value));
     document.querySelector("#cancel")!.addEventListener("click", () => dialog.close());
+    // Clicking the dark area outside the dialog closes it.
+    dialog.addEventListener("click", (event) => event.target === dialog && dialog.close());
 
     form.addEventListener("submit", async (event) => {
         event.preventDefault();
@@ -374,7 +378,9 @@ const json = JSON.stringify({ entries, colors: COLORS, people: AUTHORS }).replac
     }
 
     .time-dialog {
-        width: min(100% - 2rem, 32rem);
+        width: min(100% - 2rem, 30rem);
+        max-height: calc(100dvh - 2rem);
+        overflow-y: auto;
         margin: auto;
         padding: var(--space-2);
         background: var(--color-black);
@@ -387,11 +393,12 @@ const json = JSON.stringify({ entries, colors: COLORS, people: AUTHORS }).replac
         background: rgba(0, 0, 0, 0.8);
     }
 
-    .time-dialog h2 {
-        margin-bottom: var(--space-1);
+    .time-dialog form {
+        width: 100%;
     }
 
-    .time-dialog .btn {
-        margin-right: var(--space-0-50);
+    .time-dialog_title {
+        font-size: var(--font-size-xl);
+        margin-bottom: var(--space-1);
     }
 </style>

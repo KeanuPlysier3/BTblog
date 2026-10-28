@@ -12,11 +12,11 @@ const branch = import.meta.env.PUBLIC_GITHUB_BRANCH ?? "main";
     <form id="post-form" data-repo={repo} data-branch={branch}>
         <div class="field">
             <label for="title">Title</label>
-            <input id="title" name="title" required />
+            <input id="title" name="title" placeholder="e.g. User interview findings" required />
         </div>
         <div class="field">
             <label for="description">Short description</label>
-            <input id="description" name="description" required />
+            <input id="description" name="description" placeholder="One line shown on the feed" required />
         </div>
         <div class="field">
             <label for="category">Category</label>
@@ -25,19 +25,24 @@ const branch = import.meta.env.PUBLIC_GITHUB_BRANCH ?? "main";
             </select>
         </div>
         <div class="field">
-            <label for="body">Post (markdown)</label>
-            <button class="btn btn--ghost" type="button" id="ai-template">Insert AI template</button>
-            <textarea id="body" name="body" required></textarea>
+            <div class="field_head">
+                <label for="body">Post (markdown)</label>
+                <button class="btn btn--ghost btn--small" type="button" id="ai-template">Insert AI template</button>
+            </div>
+            <textarea id="body" name="body" placeholder="Write in markdown…" required></textarea>
         </div>
         <div class="field">
             <label for="images">Images (inserted into the post at the cursor)</label>
             <input id="images" type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple />
         </div>
         <div class="field">
-            <label for="token">GitHub token (fine-grained, "Contents: read and write" on this repo)</label>
+            <label for="token">GitHub token</label>
             <input id="token" name="token" type="password" autocomplete="off" required />
         </div>
-        <button class="btn" type="submit">Publish</button>
+        <p class="hint">Needs "Contents: read and write" on this repo. Saved in this browser only.</p>
+        <div class="form-actions">
+            <button class="btn" type="submit">Publish</button>
+        </div>
         <p class="message" id="message" role="status" hidden></p>
     </form>
 </Base>

@@ -20,8 +20,10 @@ const hash = getPasswordHash();
             <label for="password">Password</label>
             <input id="password" name="password" type="password" autocomplete="current-password" required />
         </div>
-        <button class="btn" type="submit">Log in</button>
-        <button class="btn btn--ghost" type="button" id="teacher">Continue as teacher</button>
+        <div class="form-actions">
+            <button class="btn" type="submit">Log in</button>
+            <button class="btn btn--ghost" type="button" id="teacher">Continue as teacher</button>
+        </div>
         <p class="message" id="message" role="alert" hidden></p>
     </form>
 </Base>
@@ -63,14 +65,9 @@ const hash = getPasswordHash();
 <style>
     .login {
         max-width: 24rem;
-        text-align: center;
     }
 
-    .login .field {
-        text-align: left;
-    }
-
-    .login .btn {
-        margin: var(--space-0-50) var(--space-0-50) 0 0;
+    .login .form-actions {
+        justify-content: center;
     }
 </style>
