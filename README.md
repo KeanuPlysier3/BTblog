@@ -17,10 +17,34 @@ The home page lists all posts, newest first. Use the category buttons (All / UX 
 ### Publishing a post (members only)
 1. Click **New post**.
 2. Fill in title, short description, category and the body (Markdown).
-3. Paste a GitHub token once: a fine-grained personal access token with **Contents: read and write** on this repo (GitHub → Settings → Developer settings → Fine-grained tokens). It is remembered in your browser's `localStorage`.
+3. Paste your GitHub token (see [Getting your GitHub token](#getting-your-github-token) below). You only do this once per browser.
 4. Click **Publish**. The post is committed to the repo, GitHub Actions rebuilds the site, and it appears on the feed after about a minute.
 
 The author is taken from your login, and the date is set automatically. Two posts with the same title on the same day collide (the form tells you to change the title).
+
+### Getting your GitHub token
+To publish, the site needs a GitHub token that lets it add a file to the repo on your behalf. **Every teammate creates their own.** A token is tied to the GitHub account that created it, so don't share one: commits would all show up as the same person, and if it leaks everyone loses access.
+
+**Before you start:** you must be a collaborator with write access on the repo (the repo owner adds you under Settings → Collaborators).
+
+1. On GitHub, click your profile picture → **Settings**.
+2. Scroll the left sidebar to the bottom → **Developer settings**.
+3. **Personal access tokens** → **Fine-grained tokens** → **Generate new token** (direct link: https://github.com/settings/personal-access-tokens/new).
+4. Fill in:
+   - **Token name:** `team-blog`
+   - **Expiration:** 30 to 90 days
+   - **Repository access:** *Only select repositories* → pick this blog repo
+   - **Permissions** → Repository permissions → **Contents: Read and write** (leave everything else)
+5. Click **Generate token** and **copy it immediately**. GitHub shows it only once.
+6. Log in to the blog, open **New post** and paste it into the *GitHub token* field.
+
+**Good to know**
+- After your first successful publish the token is saved in your browser (`localStorage`, key `blog-github-token`), so you don't paste it again. It is not saved anywhere else, and it is never in the repo or the website files.
+- It is stored per browser and per device, so a new browser or device means pasting it again.
+- When it expires, create a new one the same way and paste it over the old one.
+- If it leaks, revoke it under Settings → Developer settings → Fine-grained tokens.
+- Never post it in chat, issues or commits, and don't put it in `.env`.
+- Errors: **401/403** means the token is wrong, expired, or lacks *Contents: Read and write* or access to this repo. **422** means a post with that title already exists today.
 
 ### Writing a post by hand
 Add a file to `src/content/blog/` named `YYYY-MM-DD-some-title.md`:
@@ -130,6 +154,6 @@ sequenceDiagram
 1. Push the repo to GitHub.
 2. Settings → Pages → Source: **GitHub Actions**.
 3. Settings → Secrets and variables → Actions: add `TEAM_PASSWORD`. The workflow sets `PUBLIC_GITHUB_REPO` and `PUBLIC_GITHUB_BRANCH` itself.
-4. Each member creates a fine-grained token: GitHub → Settings → Developer settings → Fine-grained tokens → *Generate new token*, restricted to this repository, with **Contents: Read and write**. It is pasted once into the New post form and kept in the browser's `localStorage`.
+4. Add each teammate as a collaborator with write access, then have each of them create their own token ([Getting your GitHub token](#getting-your-github-token)).
 
 Changing a password means updating the secret and re-running the workflow, since the hash is baked in at build time.
