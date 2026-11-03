@@ -1,7 +1,7 @@
 ---
 title: "Building the setup and lobby for Wizards vs. the Dragon"
 description: "Video setup and after"
-category: UX
+category: DEVELOPMENT
 author: Keanu
 date: 2026-11-03T15:43:46.441Z
 ---
