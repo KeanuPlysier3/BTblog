@@ -1,0 +1,7 @@
+{
+  "person": "Keanu",
+  "date": "2026-11-10",
+  "hours": 6,
+  "label": "Development",
+  "description": "Implemented qr logic, leaderboard bug fixes, external website logic and passing of the correct data to build personalised book lists."
+}
