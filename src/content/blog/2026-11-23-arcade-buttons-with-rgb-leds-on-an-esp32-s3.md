@@ -82,4 +82,4 @@ I built and wired everything myself and ran all the tests on the breadboard. I u
 
 ## Next up
 
-Run the sweep test, which sends data to both short legs at both speeds at once. Measure with a multimeter whether 5V actually arrives at the LED legs. Ask the shop which chip and pinout their batch really has. If that doesn't solve it, switch to WS2812B modules on a small board with DIN, 5V and GND printed on them. My current code works with those without changes.
+I feel like i waisted the day on something that was more of cool to have thn a must have, I will shift my focus to the LED strip now because that was one of our selling points. I can come back to this later if time allows it. 
